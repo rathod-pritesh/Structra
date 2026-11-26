@@ -8,16 +8,32 @@ import {
   Pressable,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
-import { AttendanceIcon } from '../components/Icons';
+import { AttendanceIcon, PlusIcon } from '../components/Icons';
+import AddWorkerModal from '../components/AddWorkerModal';
+import PrimaryButton from '../components/PrimaryButton';
 
 export default function TasksScreen({
+  userRole = 'Supervisor',
+  lockedSubTab = null,
+  lockedAttStage = null,
   tasks = [],
   attendance = [],
+  payrollBatches = [],
   onToggleTask,
   onToggleAttendance,
+  onAddWorker,
+  onSubmitAttendance,
+  onReleasePayroll,
 }) {
-  const [subTab, setSubTab] = useState('tasks'); // 'tasks' | 'attendance'
+  const [subTab, setSubTab] = useState(lockedSubTab || 'tasks'); // 'tasks' | 'attendance'
+  const activeSubTab = lockedSubTab || subTab;
+  const [attStage, setAttStage] = useState(
+    lockedAttStage || (userRole === 'Accounts Dept.' ? 'accounts' : 'supervisor')
+  ); // 'supervisor' | 'accounts'
+  const activeAttStage = lockedAttStage || attStage;
   const [activeFilter, setActiveFilter] = useState('All');
+  const [isAddWorkerOpen, setIsAddWorkerOpen] = useState(false);
+  const [submittedNotice, setSubmittedNotice] = useState(false);
 
   const filterTabs = ['All', 'Pending', 'Completed'];
 
@@ -29,69 +45,92 @@ export default function TasksScreen({
 
   const pendingCount = tasks.filter((t) => !t.completed).length;
   const presentCount = attendance.filter((a) => a.status === 'Present').length;
-  const absentCount = attendance.filter((a) => a.status === 'Absent').length;
+  const halfDayCount = attendance.filter((a) => a.status === 'Half-Day').length;
+  const estimatedWageTotal = attendance.reduce((sum, w) => {
+    const mult = w.status === 'Present' ? 1 : w.status === 'Half-Day' ? 0.5 : 0;
+    return sum + Math.round((w.dailyWage || 0) * mult);
+  }, 0);
+
+  const pendingPayoutBatches = payrollBatches.filter(
+    (b) => b.status === 'Pending Payout'
+  ).length;
+  const totalReleasedAmount = payrollBatches
+    .filter((b) => b.status === 'Payment Released')
+    .reduce((sum, b) => sum + (b.totalPayable || 0), 0);
+
+  const handleConfirmSubmitAttendance = () => {
+    if (onSubmitAttendance) {
+      onSubmitAttendance();
+      setSubmittedNotice(true);
+      setTimeout(() => setSubmittedNotice(false), 3000);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
       <View style={styles.topHeader}>
         <View>
           <Text style={styles.screenTitle}>
-            {subTab === 'tasks' ? 'Site Operations' : 'Workforce & Labor'}
+            {activeSubTab === 'tasks'
+              ? 'Site Operations'
+              : activeAttStage === 'accounts'
+              ? 'Labour Payroll'
+              : 'Crew Attendance'}
           </Text>
           <Text style={styles.screenSubtitle}>
-            {subTab === 'tasks'
+            {activeSubTab === 'tasks'
               ? `${pendingCount} Pending QA & Site Inspections`
-              : 'Daily Labor Attendance & Site Roster'}
+              : activeAttStage === 'accounts'
+              ? 'Accounts Dept. — Release Labour Wages'
+              : 'Supervisor — Daily Labour Attendance Roster'}
           </Text>
         </View>
       </View>
 
-      {/* Main Sub-Tab Switcher: Site Tasks vs Attendance */}
-      <View style={styles.subTabSwitcherContainer}>
-        <TouchableOpacity
-          onPress={() => setSubTab('tasks')}
-          style={[
-            styles.subTabButton,
-            subTab === 'tasks' && styles.subTabButtonActive,
-          ]}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: subTab === 'tasks' }}
-        >
-          <Text
+      {!lockedSubTab && (
+        <View style={styles.subTabSwitcherContainer}>
+          <TouchableOpacity
+            onPress={() => setSubTab('tasks')}
             style={[
-              styles.subTabText,
-              subTab === 'tasks' && styles.subTabTextActive,
+              styles.subTabButton,
+              activeSubTab === 'tasks' && styles.subTabButtonActive,
             ]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeSubTab === 'tasks' }}
           >
-            Site Tasks ({tasks.length})
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.subTabText,
+                activeSubTab === 'tasks' && styles.subTabTextActive,
+              ]}
+            >
+              Site Tasks ({tasks.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => setSubTab('attendance')}
-          style={[
-            styles.subTabButton,
-            subTab === 'attendance' && styles.subTabButtonActive,
-          ]}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: subTab === 'attendance' }}
-        >
-          <Text
+          <TouchableOpacity
+            onPress={() => setSubTab('attendance')}
             style={[
-              styles.subTabText,
-              subTab === 'attendance' && styles.subTabTextActive,
+              styles.subTabButton,
+              activeSubTab === 'attendance' && styles.subTabButtonActive,
             ]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeSubTab === 'attendance' }}
           >
-            Crew Attendance ({attendance.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={[
+                styles.subTabText,
+                activeSubTab === 'attendance' && styles.subTabTextActive,
+              ]}
+            >
+              Crew Attendance ({attendance.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* 1. TASKS SUB-TAB VIEW */}
-      {subTab === 'tasks' && (
+      {activeSubTab === 'tasks' && (
         <>
-          {/* Filter Tabs */}
           <View style={styles.filterRow}>
             {filterTabs.map((tab) => {
               const isActive = activeFilter === tab;
@@ -117,7 +156,6 @@ export default function TasksScreen({
             })}
           </View>
 
-          {/* Task List / Empty State */}
           <ScrollView
             style={styles.scrollList}
             contentContainerStyle={styles.listContent}
@@ -195,88 +233,326 @@ export default function TasksScreen({
         </>
       )}
 
-      {/* 2. ATTENDANCE SUB-TAB VIEW */}
-      {subTab === 'attendance' && (
+      {activeSubTab === 'attendance' && (
         <ScrollView
           style={styles.scrollList}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Attendance Metric Bar */}
-          <View style={styles.attendanceSummaryRow}>
-            <View style={styles.attMetricCard}>
-              <Text style={styles.attMetricValue}>{attendance.length}</Text>
-              <Text style={styles.attMetricLabel}>Enrolled Crew</Text>
-            </View>
-            <View style={styles.attMetricCard}>
-              <Text style={[styles.attMetricValue, { color: COLORS.success }]}>
-                {presentCount}
-              </Text>
-              <Text style={styles.attMetricLabel}>Present On Site</Text>
-            </View>
-            <View style={styles.attMetricCard}>
-              <Text style={[styles.attMetricValue, { color: COLORS.error }]}>
-                {absentCount}
-              </Text>
-              <Text style={styles.attMetricLabel}>Absent</Text>
-            </View>
-          </View>
+          {!lockedAttStage && (
+            <View style={styles.workflowPillRow}>
+              <TouchableOpacity
+                onPress={() => setAttStage('supervisor')}
+                style={[
+                  styles.workflowPill,
+                  activeAttStage === 'supervisor' && styles.workflowPillActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.workflowPillText,
+                    activeAttStage === 'supervisor' && styles.workflowPillTextActive,
+                  ]}
+                >
+                  1. Supervisor Roster
+                </Text>
+              </TouchableOpacity>
 
-          {/* Attendance Records List / Clean Empty State */}
-          {attendance.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <AttendanceIcon color={COLORS.secondary} size={30} />
-              </View>
-              <Text style={styles.emptyTitle}>No Attendance Records Yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Daily workforce attendance records will sync here from site biometric scanners or check-in stations once connected to the backend.
-              </Text>
+              <TouchableOpacity
+                onPress={() => setAttStage('accounts')}
+                style={[
+                  styles.workflowPill,
+                  activeAttStage === 'accounts' && styles.workflowPillActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.workflowPillText,
+                    activeAttStage === 'accounts' && styles.workflowPillTextActive,
+                  ]}
+                >
+                  2. Accounts Dept. ({pendingPayoutBatches})
+                </Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            attendance.map((worker) => {
-              const isPresent = worker.status === 'Present';
+          )}
 
-              return (
-                <View key={worker.id} style={styles.workerCard}>
-                  <View style={styles.workerInfoCol}>
-                    <Text style={styles.workerName}>{worker.name}</Text>
-                    <Text style={styles.workerTrade}>
-                      {worker.trade} • {worker.crew}
-                    </Text>
-                    <Text style={styles.workerShift}>
-                      {worker.shift} {worker.checkIn ? `• In: ${worker.checkIn}` : ''}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() =>
-                      onToggleAttendance && onToggleAttendance(worker.id)
-                    }
-                    style={[
-                      styles.attendanceToggleBtn,
-                      isPresent
-                        ? styles.btnStatusPresent
-                        : styles.btnStatusAbsent,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.attendanceToggleText,
-                        isPresent
-                          ? styles.textStatusPresent
-                          : styles.textStatusAbsent,
-                      ]}
-                    >
-                      {isPresent ? 'Present ✓' : 'Absent ✕'}
-                    </Text>
-                  </TouchableOpacity>
+          {activeAttStage === 'supervisor' && (
+            <>
+              <View style={styles.stageHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.stageTitle}>Daily Labour Attendance</Text>
+                  <Text style={styles.stageSub}>
+                    Mark status & submit sheet to Accounts Dept.
+                  </Text>
                 </View>
-              );
-            })
+                <TouchableOpacity
+                  onPress={() => setIsAddWorkerOpen(true)}
+                  style={styles.addWorkerBtn}
+                  activeOpacity={0.85}
+                >
+                  <PlusIcon color="#FFFFFF" size={14} />
+                  <Text style={styles.addWorkerBtnText}>Add Worker</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Attendance Metric Bar */}
+              <View style={styles.attendanceSummaryRow}>
+                <View style={styles.attMetricCard}>
+                  <Text style={styles.attMetricValue}>{attendance.length}</Text>
+                  <Text style={styles.attMetricLabel}>Enrolled</Text>
+                </View>
+                <View style={styles.attMetricCard}>
+                  <Text style={[styles.attMetricValue, { color: COLORS.success }]}>
+                    {presentCount + halfDayCount}
+                  </Text>
+                  <Text style={styles.attMetricLabel}>On Site</Text>
+                </View>
+                <View style={styles.attMetricCard}>
+                  <Text style={[styles.attMetricValue, { color: COLORS.primary }]}>
+                    ₹{estimatedWageTotal}
+                  </Text>
+                  <Text style={styles.attMetricLabel}>Est. Wage</Text>
+                </View>
+              </View>
+
+              {submittedNotice ? (
+                <View style={styles.successBanner}>
+                  <Text style={styles.successBannerText}>
+                    Attendance sheet submitted to Accounts Dept. for wage payout!
+                  </Text>
+                </View>
+              ) : null}
+
+              {attendance.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <AttendanceIcon color={COLORS.secondary} size={30} />
+                  </View>
+                  <Text style={styles.emptyTitle}>No Labourers Enrolled Yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Tap '+ Add Worker' to enroll daily workers, mark their attendance, and submit to the Accounts Department.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {attendance.map((worker) => {
+                    const isPresent = worker.status === 'Present';
+                    const isHalf = worker.status === 'Half-Day';
+                    const wageToday = isPresent
+                      ? worker.dailyWage
+                      : isHalf
+                      ? Math.round((worker.dailyWage || 0) * 0.5)
+                      : 0;
+
+                    return (
+                      <View key={worker.id} style={styles.workerCard}>
+                        <View style={styles.workerInfoCol}>
+                          <Text style={styles.workerName}>{worker.name}</Text>
+                          <Text style={styles.workerTrade}>
+                            {worker.trade} • ₹{worker.dailyWage}/day
+                          </Text>
+                          <Text style={styles.workerShift}>
+                            {worker.shift} • Payable: ₹{wageToday}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          onPress={() =>
+                            onToggleAttendance && onToggleAttendance(worker.id)
+                          }
+                          style={[
+                            styles.attendanceToggleBtn,
+                            isPresent
+                              ? styles.btnStatusPresent
+                              : isHalf
+                              ? styles.btnStatusHalf
+                              : styles.btnStatusAbsent,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.attendanceToggleText,
+                              isPresent
+                                ? styles.textStatusPresent
+                                : isHalf
+                                ? styles.textStatusHalf
+                                : styles.textStatusAbsent,
+                            ]}
+                          >
+                            {isPresent
+                              ? 'Present ✓'
+                              : isHalf
+                              ? 'Half-Day'
+                              : 'Absent ✕'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+
+                  {/* Submit to Accounts Card */}
+                  <View style={styles.submitPayrollCard}>
+                    <View style={styles.submitPayrollRow}>
+                      <Text style={styles.submitPayrollLabel}>
+                        Today's Total Labour Wage
+                      </Text>
+                      <Text style={styles.submitPayrollAmount}>
+                        ₹{estimatedWageTotal}
+                      </Text>
+                    </View>
+                    <PrimaryButton
+                      title="Submit Attendance to Accounts Dept. →"
+                      onPress={handleConfirmSubmitAttendance}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          )}
+
+          {activeAttStage === 'accounts' && (
+            <>
+              <View style={styles.stageHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.stageTitle}>Accounts Dept. — Labour Pay</Text>
+                  <Text style={styles.stageSub}>
+                    Review supervisor attendance sheets & release wages.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.attendanceSummaryRow}>
+                <View style={styles.attMetricCard}>
+                  <Text style={styles.attMetricValue}>{payrollBatches.length}</Text>
+                  <Text style={styles.attMetricLabel}>Sheets</Text>
+                </View>
+                <View style={styles.attMetricCard}>
+                  <Text style={[styles.attMetricValue, { color: COLORS.secondary }]}>
+                    {pendingPayoutBatches}
+                  </Text>
+                  <Text style={styles.attMetricLabel}>Pending Pay</Text>
+                </View>
+                <View style={styles.attMetricCard}>
+                  <Text style={[styles.attMetricValue, { color: COLORS.success }]}>
+                    ₹{totalReleasedAmount}
+                  </Text>
+                  <Text style={styles.attMetricLabel}>Released</Text>
+                </View>
+              </View>
+
+              {payrollBatches.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <AttendanceIcon color={COLORS.primary} size={30} />
+                  </View>
+                  <Text style={styles.emptyTitle}>No Attendance Sheets Submitted</Text>
+                  <Text style={styles.emptySubtitle}>
+                    When a Supervisor marks daily attendance and submits it, the wage sheet appears here for Accounts Dept. payout release.
+                  </Text>
+                </View>
+              ) : (
+                payrollBatches.map((batch) => {
+                  const isReleased = batch.status === 'Payment Released';
+                  return (
+                    <View key={batch.id} style={styles.payrollCard}>
+                      <View style={styles.payrollHeader}>
+                        <View>
+                          <Text style={styles.payrollId}>
+                            Sheet #{batch.id} • {batch.date}
+                          </Text>
+                          <Text style={styles.payrollMeta}>
+                            By {batch.submittedBy} at {batch.submittedAt}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.payrollBadge,
+                            isReleased
+                              ? styles.payrollBadgeReleased
+                              : styles.payrollBadgePending,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.payrollBadgeText,
+                              isReleased
+                                ? styles.payrollBadgeTextReleased
+                                : styles.payrollBadgeTextPending,
+                            ]}
+                          >
+                            {isReleased ? 'Released ✓' : 'Pending Payout'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.payrollCountsRow}>
+                        <Text style={styles.payrollCountChip}>
+                          Present: {batch.presentCount}
+                        </Text>
+                        <Text style={styles.payrollCountChip}>
+                          Half-Day: {batch.halfDayCount}
+                        </Text>
+                        <Text style={styles.payrollCountChip}>
+                          Absent: {batch.absentCount}
+                        </Text>
+                      </View>
+
+                      {/* Worker Wage Breakdown */}
+                      <View style={styles.entriesBox}>
+                        {batch.entries.map((entry) => (
+                          <View key={entry.id} style={styles.entryRow}>
+                            <Text style={styles.entryName}>
+                              {entry.name} ({entry.trade})
+                            </Text>
+                            <Text style={styles.entryWage}>
+                              {entry.status} • ₹{entry.wage}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      <View style={styles.payrollFooter}>
+                        <View>
+                          <Text style={styles.payrollTotalLabel}>Total Wage</Text>
+                          <Text style={styles.payrollTotalValue}>
+                            ₹{batch.totalPayable}
+                          </Text>
+                        </View>
+
+                        {!isReleased ? (
+                          <TouchableOpacity
+                            onPress={() =>
+                              onReleasePayroll && onReleasePayroll(batch.id)
+                            }
+                            style={styles.releaseBtn}
+                            activeOpacity={0.85}
+                          >
+                            <Text style={styles.releaseBtnText}>
+                              Release Payment ✓
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.releasedTime}>
+                            Paid at {batch.releasedAt}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </>
           )}
         </ScrollView>
       )}
+
+      {/* Enroll Worker Modal */}
+      <AddWorkerModal
+        visible={isAddWorkerOpen}
+        onClose={() => setIsAddWorkerOpen(false)}
+        onAddWorker={(w) => onAddWorker && onAddWorker(w)}
+      />
     </View>
   );
 }
@@ -560,7 +836,225 @@ const styles = StyleSheet.create({
   textStatusPresent: {
     color: COLORS.success,
   },
+  textStatusHalf: {
+    color: COLORS.secondary,
+  },
   textStatusAbsent: {
     color: COLORS.error,
+  },
+  btnStatusHalf: {
+    backgroundColor: COLORS.amberLight || '#FDF1E8',
+    borderColor: '#F2D3BE',
+  },
+  workflowPillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  workflowPill: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  workflowPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  workflowPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  workflowPillTextActive: {
+    color: '#FFFFFF',
+  },
+  stageHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  stageTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  stageSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  addWorkerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 5,
+  },
+  addWorkerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  successBanner: {
+    backgroundColor: COLORS.successLight,
+    borderWidth: 1,
+    borderColor: '#C7E4D3',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  successBannerText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  submitPayrollCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    padding: 14,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  submitPayrollRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  submitPayrollLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  submitPayrollAmount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  payrollCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    borderWidth: 1.2,
+    borderColor: COLORS.inputBorder,
+    padding: 14,
+    marginBottom: 12,
+  },
+  payrollHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  payrollId: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  payrollMeta: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  payrollBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  payrollBadgePending: {
+    backgroundColor: 'rgba(234, 106, 32, 0.14)',
+  },
+  payrollBadgeReleased: {
+    backgroundColor: COLORS.successLight,
+  },
+  payrollBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  payrollBadgeTextPending: {
+    color: COLORS.secondary,
+  },
+  payrollBadgeTextReleased: {
+    color: COLORS.success,
+  },
+  payrollCountsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  payrollCountChip: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    backgroundColor: COLORS.inputBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  entriesBox: {
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    gap: 6,
+  },
+  entryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  entryName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  entryWage: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  payrollFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.inputBorder,
+    paddingTop: 10,
+  },
+  payrollTotalLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  payrollTotalValue: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  releaseBtn: {
+    backgroundColor: COLORS.success,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  releaseBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  releasedTime: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.success,
   },
 });
