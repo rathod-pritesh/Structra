@@ -20,6 +20,7 @@ import {
 export default function RegisterPasswordScreen({
   name = '',
   email = '',
+  role = null,
   isEmailVerified = false,
   onComplete,
   onBack,
@@ -67,20 +68,18 @@ export default function RegisterPasswordScreen({
 
     setIsSubmitting(true);
 
-    // Simulate backend account creation delay
     setTimeout(() => {
       setIsSubmitting(false);
-      // Pass safe registration details only (no passwords retained)
       onComplete({
         name,
         email,
+        role,
       });
     }, 1000);
   };
 
   return (
     <View style={styles.container}>
-      {/* Back navigation */}
       <TouchableOpacity
         onPress={onBack}
         style={styles.backButton}
@@ -92,16 +91,13 @@ export default function RegisterPasswordScreen({
         <Text style={styles.backButtonText}>Back to Verification</Text>
       </TouchableOpacity>
 
-      {/* Progress indicator: Step 3 of 3 */}
       <ProgressIndicator currentStep={3} totalSteps={3} />
 
-      {/* Heading & description */}
       <BrandHeader
         heading="Create a password"
         description="Your email is verified. Set a password to complete your registration."
       />
 
-      {/* Clear Email-Verified Badge */}
       <View style={styles.verifiedBadge}>
         <View style={styles.verifiedIconCircle}>
           <Text style={styles.verifiedCheck}>✓</Text>
@@ -109,6 +105,11 @@ export default function RegisterPasswordScreen({
         <View style={styles.verifiedInfo}>
           <Text style={styles.verifiedStatus}>Email Verified</Text>
           <Text style={styles.verifiedEmail}>{email || 'Verified user'}</Text>
+          {role?.label ? (
+            <Text style={styles.verifiedRole}>
+              Role: {role.label} • Approver: {role.approver}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -143,10 +144,10 @@ export default function RegisterPasswordScreen({
         editable={!isSubmitting}
       />
 
-      {/* Primary button: Create account */}
+      {/* Primary button: Submit Access Request */}
       <View style={styles.actionContainer}>
         <PrimaryButton
-          title="Create account"
+          title="Submit Access Request"
           onPress={handleCreateAccount}
           loading={isSubmitting}
         />
@@ -215,6 +216,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.textPrimary,
+  },
+  verifiedRole: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   actionContainer: {
     marginTop: 10,

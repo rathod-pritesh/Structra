@@ -7,6 +7,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { LOGIN_ROLES, DEMO_LOGIN_ACCOUNTS } from '../constants/authConstants';
 import BrandHeader from '../components/BrandHeader';
 import AuthInput from '../components/AuthInput';
 import PrimaryButton from '../components/PrimaryButton';
@@ -21,10 +22,9 @@ export default function LoginScreen({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState(LOGIN_ROLES[0]);
   const [errors, setErrors] = useState({ email: null, password: null });
   const [isLoading, setIsLoading] = useState(false);
-
-  // Demo modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({
     title: '',
@@ -66,24 +66,23 @@ export default function LoginScreen({
       return;
     }
 
-    // Begin simulated frontend-only authentication
     setIsLoading(true);
 
     setTimeout(() => {
       setIsLoading(false);
       setModalConfig({
         title: 'Demo Sign In Successful',
-        message: `Welcome to Structra! Credentials format validated for ${email.trim()}.\n\nTap below to enter your Construction Project Management Dashboard.`,
+        message: `Welcome to Structra! Signed in as ${selectedRole.label} (${email.trim()}).\n\nTap below to enter your Construction Project Management Dashboard.`,
         tagText: 'DEMO SUCCESS',
         buttonText: 'Enter Dashboard →',
         onAction: () => {
           if (onLoginSuccess) {
-            const rawPrefix = email.trim().split('@')[0] || 'Supervisor';
+            const rawPrefix = email.trim().split('@')[0] || 'User';
             const cleanName = rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1);
             onLoginSuccess({
               name: cleanName,
               email: email.trim(),
-              role: 'Field Supervisor',
+              role: selectedRole.label,
               company: 'Structra Construction',
               initials: cleanName.slice(0, 2).toUpperCase(),
             });
@@ -108,13 +107,33 @@ export default function LoginScreen({
 
   return (
     <View style={styles.container}>
-      {/* 1. Brand Mark & Name, 2. Heading, 3. Supporting Text */}
       <BrandHeader
         heading="Welcome back"
         description="Sign in to continue to your Structra account."
       />
 
-      {/* 4. Email input field */}
+      <View style={styles.roleWrapper}>
+        <Text style={styles.roleTitle}>Account Role</Text>
+        <View style={styles.roleChipsRow}>
+          {LOGIN_ROLES.map((roleObj) => {
+            const active = selectedRole.id === roleObj.id;
+            return (
+              <TouchableOpacity
+                key={roleObj.id}
+                onPress={() => setSelectedRole(roleObj)}
+                style={[styles.roleChip, active && styles.roleChipActive]}
+                activeOpacity={0.8}
+                disabled={isLoading}
+              >
+                <Text style={[styles.roleChipText, active && styles.roleChipTextActive]}>
+                  {roleObj.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <AuthInput
         label="Email address"
         placeholder="Enter your email"
@@ -128,7 +147,6 @@ export default function LoginScreen({
         editable={!isLoading}
       />
 
-      {/* 5. Password input field & 6. Password visibility toggle */}
       <AuthInput
         label="Password"
         placeholder="Enter your password"
@@ -142,7 +160,6 @@ export default function LoginScreen({
         editable={!isLoading}
       />
 
-      {/* 7. Forgot password? text button */}
       <View style={styles.forgotPasswordContainer}>
         <TouchableOpacity
           onPress={onNavigateToForgotPassword}
@@ -154,24 +171,50 @@ export default function LoginScreen({
         </TouchableOpacity>
       </View>
 
-      {/* 8. Primary Sign In button */}
       <PrimaryButton
         title="Sign In"
         onPress={handleSignIn}
         loading={isLoading}
       />
 
-      {/* 9. Visually separated OR divider */}
+      <View style={styles.demoSection}>
+        <Text style={styles.demoSectionTitle}>Quick Role Demo Login</Text>
+        <Text style={styles.demoSectionSub}>
+          Tap any role to jump directly into its dedicated UI
+        </Text>
+        <View style={styles.demoGrid}>
+          {DEMO_LOGIN_ACCOUNTS.map((acc) => (
+            <TouchableOpacity
+              key={acc.id}
+              onPress={() => {
+                if (onLoginSuccess) {
+                  onLoginSuccess({
+                    name: acc.name,
+                    email: acc.email,
+                    role: acc.label,
+                    company: 'Structra Construction',
+                    initials: acc.initials,
+                  });
+                }
+              }}
+              style={styles.demoRoleCard}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.demoRoleTitle}>{acc.label}</Text>
+              <Text style={styles.demoRoleTag}>{acc.tag}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
         <Text style={styles.dividerText}>OR</Text>
         <View style={styles.dividerLine} />
       </View>
 
-      {/* 10. Continue with Google button */}
       <GoogleSignInButton onPress={handleGooglePress} />
 
-      {/* 11. Bottom text: Don't have an account? Sign up */}
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>Don't have an account? </Text>
         <TouchableOpacity
@@ -184,7 +227,6 @@ export default function LoginScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Informational Demo Modal */}
       <DemoModal
         visible={modalVisible}
         onClose={() => {
@@ -248,5 +290,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.primary,
     fontWeight: '700',
+  },
+  roleWrapper: {
+    marginBottom: 16,
+  },
+  roleTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  roleChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  roleChip: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  roleChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  roleChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  roleChipTextActive: {
+    color: '#FFFFFF',
+  },
+  demoSection: {
+    marginTop: 18,
+    backgroundColor: COLORS.navyLight || '#EEF2F8',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    padding: 14,
+  },
+  demoSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 2,
+  },
+  demoSectionSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+  },
+  demoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  demoRoleCard: {
+    width: '48%',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  demoRoleTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  demoRoleTag: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
 });
