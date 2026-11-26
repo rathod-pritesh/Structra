@@ -9,69 +9,108 @@ export default function RegisterSuccessScreen({
   onNavigateToLogin,
   onNavigateToDashboard,
 }) {
-  const { name = 'Valued User', email = 'user@example.com' } = registeredUser;
+  const {
+    name = 'Applicant',
+    email = 'user@structra.in',
+    role = null,
+  } = registeredUser;
+
+  const roleLabel = role?.label || 'Site Personnel';
+  const approverLabel = role?.approver || 'Site / Project Manager';
 
   return (
     <View style={styles.container}>
       <BrandHeader showLogoOnly={true} />
 
       <View style={styles.card}>
-        {/* Success Icon */}
         <View style={styles.iconCircle}>
-          <Text style={styles.checkIcon}>✓</Text>
+          <Text style={styles.pendingIcon}>⏳</Text>
         </View>
 
-        <Text style={styles.title}>Registration Completed</Text>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusPillText}>PENDING APPROVAL</Text>
+        </View>
+
+        <Text style={styles.title}>Access Request Submitted</Text>
         <Text style={styles.subtitle}>
-          Welcome to Structra, {name}!
+          Thank you, {name}. Your account is not active yet and is waiting for approval.
         </Text>
 
-        {/* Account Details Box */}
         <View style={styles.detailsBox}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Full Name:</Text>
+            <Text style={styles.detailLabel}>Full Name</Text>
             <Text style={styles.detailValue}>{name}</Text>
           </View>
           <View style={styles.detailDivider} />
+
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Email Address:</Text>
+            <Text style={styles.detailLabel}>Email Address</Text>
             <Text style={styles.detailValue}>{email}</Text>
           </View>
           <View style={styles.detailDivider} />
+
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Email Status:</Text>
-            <Text style={[styles.detailValue, { color: COLORS.success }]}>
-              Verified (Demo)
+            <Text style={styles.detailLabel}>Requested Role</Text>
+            <Text style={styles.detailValue}>{roleLabel}</Text>
+          </View>
+          <View style={styles.detailDivider} />
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Approver</Text>
+            <Text style={[styles.detailValue, { color: COLORS.primary }]}>
+              {approverLabel}
+            </Text>
+          </View>
+          <View style={styles.detailDivider} />
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Account Status</Text>
+            <Text style={[styles.detailValue, { color: COLORS.secondary }]}>
+              Pending Review
             </Text>
           </View>
         </View>
 
-        {/* Honest Demonstration Disclosure */}
-        <View style={styles.demoDisclosure}>
-          <View style={styles.demoBadge}>
-            <Text style={styles.demoBadgeText}>SIMULATION NOTICE</Text>
+        <View style={styles.gateBox}>
+          <Text style={styles.gateHeader}>APPROVAL WORKFLOW</Text>
+
+          <View style={styles.gateStep}>
+            <View style={[styles.gateDot, styles.gateDotDone]}>
+              <Text style={styles.gateDotText}>✓</Text>
+            </View>
+            <Text style={styles.gateStepText}>1. Email Verified</Text>
           </View>
-          <Text style={styles.demoText}>
-            This registration process was simulated entirely within the mobile frontend.
-            No personal information or passwords have been transmitted to any external backend,
-            API, or saved into persistent storage.
-          </Text>
+
+          <View style={styles.gateStep}>
+            <View style={[styles.gateDot, styles.gateDotActive]}>
+              <Text style={styles.gateDotText}>2</Text>
+            </View>
+            <Text style={styles.gateStepTextActive}>
+              2. {approverLabel} Approval (In Queue)
+            </Text>
+          </View>
+
+          <View style={styles.gateStep}>
+            <View style={[styles.gateDot, styles.gateDotIdle]}>
+              <Text style={styles.gateDotTextIdle}>3</Text>
+            </View>
+            <Text style={styles.gateStepTextIdle}>3. Account Activated & Ready</Text>
+          </View>
         </View>
 
-        {/* Action Button: Enter Dashboard & Back to Sign In */}
         <View style={styles.buttonContainer}>
-          {onNavigateToDashboard && (
-            <PrimaryButton
-              title="Open Dashboard"
-              onPress={onNavigateToDashboard}
-              style={{ marginBottom: 10 }}
-            />
-          )}
           <PrimaryButton
             title="Back to Sign In"
-            variant={onNavigateToDashboard ? 'outline' : 'primary'}
             onPress={onNavigateToLogin}
+            style={{ marginBottom: 10 }}
           />
+          {onNavigateToDashboard && (
+            <PrimaryButton
+              title={`Preview as ${roleLabel} (UI Demo)`}
+              variant="outline"
+              onPress={onNavigateToDashboard}
+            />
+          )}
         </View>
       </View>
     </View>
@@ -102,20 +141,31 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: COLORS.successLight,
+    backgroundColor: COLORS.amberLight || '#FDF1E8',
     borderWidth: 2,
-    borderColor: COLORS.success,
+    borderColor: COLORS.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 14,
   },
-  checkIcon: {
-    fontSize: 34,
-    color: COLORS.success,
+  pendingIcon: {
+    fontSize: 30,
+  },
+  statusPill: {
+    backgroundColor: 'rgba(234, 106, 32, 0.14)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  statusPillText: {
+    fontSize: 11,
     fontWeight: '800',
+    color: COLORS.secondary,
+    letterSpacing: 0.7,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: COLORS.textPrimary,
     marginBottom: 6,
@@ -123,10 +173,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textSecondary,
     marginBottom: 20,
     textAlign: 'center',
+    lineHeight: 20,
   },
   detailsBox: {
     width: '100%',
@@ -135,7 +186,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   detailRow: {
     flexDirection: 'row',
@@ -151,38 +202,77 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textPrimary,
     fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: 12,
   },
   detailDivider: {
     height: 1,
     backgroundColor: COLORS.inputBorder,
     marginVertical: 10,
   },
-  demoDisclosure: {
+  gateBox: {
     width: '100%',
-    backgroundColor: COLORS.amberLight || '#FDF1E8',
+    backgroundColor: COLORS.navyLight || '#EEF2F8',
     borderWidth: 1,
-    borderColor: '#F2D3BE',
+    borderColor: COLORS.inputBorder,
     borderRadius: 14,
     padding: 14,
-    marginBottom: 22,
+    marginBottom: 20,
   },
-  demoBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(234, 106, 32, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 6,
-  },
-  demoBadgeText: {
+  gateHeader: {
     fontSize: 10,
     fontWeight: '800',
-    color: COLORS.secondary,
-    letterSpacing: 0.6,
+    color: COLORS.primary,
+    letterSpacing: 0.7,
+    marginBottom: 10,
   },
-  demoText: {
+  gateStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  gateDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  gateDotDone: {
+    backgroundColor: COLORS.success,
+  },
+  gateDotActive: {
+    backgroundColor: COLORS.secondary,
+  },
+  gateDotIdle: {
+    backgroundColor: COLORS.inputBorder,
+  },
+  gateDotText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  gateDotTextIdle: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  gateStepText: {
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: '600',
+    color: COLORS.success,
+  },
+  gateStepTextActive: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  gateStepTextIdle: {
+    fontSize: 12,
+    fontWeight: '500',
     color: COLORS.textSecondary,
   },
   buttonContainer: {
