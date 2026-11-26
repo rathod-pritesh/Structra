@@ -15,7 +15,6 @@ export const MOCK_STATS = {
   workforceOnSite: 0,
 };
 
-// Clean arrays ready for backend API connection
 export const MOCK_PROJECTS = [];
 export const MOCK_TASKS = [];
 export const MOCK_INVENTORY = [];
