@@ -23,7 +23,7 @@ export default function DeductMaterialModal({
 }) {
   const [quantity, setQuantity] = useState('');
   const [selectedProject, setSelectedProject] = useState(
-    projects.length > 0 ? projects[0].name : 'Shivalik Skyview Corporate Tower'
+    projects.length > 0 ? projects[0].name : 'Default Project Site'
   );
   const [purpose, setPurpose] = useState('');
   const [error, setError] = useState(null);

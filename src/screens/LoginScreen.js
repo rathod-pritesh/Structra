@@ -78,12 +78,14 @@ export default function LoginScreen({
         buttonText: 'Enter Dashboard →',
         onAction: () => {
           if (onLoginSuccess) {
+            const rawPrefix = email.trim().split('@')[0] || 'Supervisor';
+            const cleanName = rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1);
             onLoginSuccess({
-              name: 'Aarav Patel',
+              name: cleanName,
               email: email.trim(),
-              role: 'Chief Project Director',
-              company: 'Structra Infra Gujarat Ltd',
-              initials: 'AP',
+              role: 'Field Supervisor',
+              company: 'Structra Construction',
+              initials: cleanName.slice(0, 2).toUpperCase(),
             });
           }
         },

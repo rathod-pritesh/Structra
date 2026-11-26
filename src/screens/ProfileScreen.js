@@ -13,12 +13,12 @@ import { LogOutIcon } from '../components/Icons';
 
 export default function ProfileScreen({ user = {}, onLogOut }) {
   const {
-    name = 'Aarav Patel',
-    role = 'Chief Project Director',
-    company = 'Structra Infra Gujarat Ltd',
-    email = 'aarav.patel@structra.in',
-    licenseNo = 'GJ-AMD-884920',
-    initials = 'AP',
+    name = 'Site Supervisor',
+    role = 'Field Supervisor',
+    company = 'Structra Construction',
+    email = 'supervisor@structra.in',
+    licenseNo = 'Not Assigned',
+    initials = 'SS',
   } = user;
 
   return (

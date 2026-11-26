@@ -69,9 +69,9 @@ export default function DashboardScreen({
       {/* Welcome Greeting Banner */}
       <View style={styles.welcomeCard}>
         <Text style={styles.greetingText}>AHMEDABAD SITE SUPERVISOR PORTAL</Text>
-        <Text style={styles.userName}>{user.name || 'Aarav Patel'}</Text>
+        <Text style={styles.userName}>{user.name || 'Site Supervisor'}</Text>
         <Text style={styles.userRole}>
-          {user.role || 'Chief Project Director'} • {user.company || 'Structra Infra Gujarat'}
+          {user.role || 'Site Supervisor'} • {user.company || 'Structra'}
         </Text>
       </View>
 
@@ -85,21 +85,21 @@ export default function DashboardScreen({
         <SummaryCard
           title="Active Projects"
           value={activeProjectsCount}
-          subtext="On Track"
+          subtext={activeProjectsCount > 0 ? 'On Track' : 'None Active'}
           variant="primary"
           style={styles.summaryCol3}
         />
         <SummaryCard
           title="Pending Tasks"
           value={pendingTasksCount}
-          subtext="5 Urgent"
+          subtext={pendingTasksCount > 0 ? `${pendingTasksCount} Urgent` : 'All Done'}
           variant="accent"
           style={styles.summaryCol3}
         />
         <SummaryCard
           title="Completed"
           value={completedTasksCount}
-          subtext="92% Rate"
+          subtext={completedTasksCount > 0 ? `${completedTasksCount} Verified` : 'None Yet'}
           variant="success"
           style={styles.summaryCol3}
         />
@@ -177,13 +177,25 @@ export default function DashboardScreen({
         </TouchableOpacity>
       </View>
 
-      {projects.slice(0, 3).map((project) => (
-        <ProjectCard
-          key={project.id}
-          project={project}
-          onPress={() => onSelectProject ? onSelectProject(project) : onNavigateToTab('projects')}
-        />
-      ))}
+      {projects.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconCircle}>
+            <PlusIcon color={COLORS.primary} size={20} />
+          </View>
+          <Text style={styles.emptyTitle}>No Projects Yet</Text>
+          <Text style={styles.emptySubtext}>
+            Tap '+ Create Project' to initialize a new site or connect with backend APIs.
+          </Text>
+        </View>
+      ) : (
+        projects.slice(0, 3).map((project) => (
+          <ProjectCard
+            key={project.id}
+            project={project}
+            onPress={() => onSelectProject ? onSelectProject(project) : onNavigateToTab('projects')}
+          />
+        ))
+      )}
 
       {/* 5. Priority Tasks Preview */}
       <View style={styles.tasksSectionWrapper}>
@@ -197,32 +209,41 @@ export default function DashboardScreen({
             onPress={() => onNavigateToTab('tasks')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.seeAllText}>All Tasks →</Text>
+            <Text style={styles.seeAllText}>All Tasks ({tasks.length}) →</Text>
           </TouchableOpacity>
         </View>
 
-        {urgentTasks.map((task) => (
-          <Pressable
-            key={task.id}
-            onPress={() => onNavigateToTab('tasks')}
-            style={styles.taskCard}
-          >
-            <View style={styles.taskBadgeCol}>
-              <View style={styles.priorityPill}>
-                <Text style={styles.priorityText}>{task.priority}</Text>
+        {urgentTasks.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No Urgent Tasks</Text>
+            <Text style={styles.emptySubtext}>
+              All site checklists, milestones, and inspections are clear.
+            </Text>
+          </View>
+        ) : (
+          urgentTasks.map((task) => (
+            <Pressable
+              key={task.id}
+              onPress={() => onNavigateToTab('tasks')}
+              style={styles.taskCard}
+            >
+              <View style={styles.taskBadgeCol}>
+                <View style={styles.priorityPill}>
+                  <Text style={styles.priorityText}>{task.priority}</Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.taskInfoCol}>
-              <Text style={styles.taskTitle} numberOfLines={1}>
-                {task.title}
-              </Text>
-              <Text style={styles.taskSubtext}>
-                {task.project} • {task.dueDate}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
+              <View style={styles.taskInfoCol}>
+                <Text style={styles.taskTitle} numberOfLines={1}>
+                  {task.title}
+                </Text>
+                <Text style={styles.taskSubtext}>
+                  {task.project} • {task.dueDate}
+                </Text>
+              </View>
+            </Pressable>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -531,5 +552,37 @@ const styles = StyleSheet.create({
   taskSubtext: {
     fontSize: 11,
     color: COLORS.textSecondary,
+  },
+  emptyCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderStyle: 'dashed',
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.navyLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
