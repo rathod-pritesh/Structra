@@ -1,43 +1,48 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { COLORS } from '../constants/colors';
-import { HomeIcon, ProjectsIcon, InventoryIcon, TasksIcon, ProfileIcon } from './Icons';
+import {
+  HomeIcon,
+  ProjectsIcon,
+  InventoryIcon,
+  TasksIcon,
+  AttendanceIcon,
+  ProfileIcon,
+} from './Icons';
 
-export default function BottomNavBar({ activeTab = 'home', onTabChange }) {
-  const tabs = [
-    {
-      id: 'home',
-      label: 'Home',
-      icon: (color) => <HomeIcon color={color} size={20} />,
-    },
-    {
-      id: 'projects',
-      label: 'Projects',
-      icon: (color) => <ProjectsIcon color={color} size={20} />,
-    },
-    {
-      id: 'inventory',
-      label: 'Inventory',
-      icon: (color) => <InventoryIcon color={color} size={20} />,
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      icon: (color) => <TasksIcon color={color} size={20} />,
-    },
-    {
-      id: 'profile',
-      label: 'Profile',
-      icon: (color) => <ProfileIcon color={color} size={20} />,
-    },
-  ];
+const ICON_MAP = {
+  home: (color) => <HomeIcon color={color} size={20} />,
+  projects: (color) => <ProjectsIcon color={color} size={20} />,
+  reports: (color) => <ProjectsIcon color={color} size={20} />,
+  overviews: (color) => <ProjectsIcon color={color} size={20} />,
+  inventory: (color) => <InventoryIcon color={color} size={20} />,
+  tasks: (color) => <TasksIcon color={color} size={20} />,
+  approvals: (color) => <TasksIcon color={color} size={20} />,
+  attendance: (color) => <AttendanceIcon color={color} size={20} />,
+  payroll: (color) => <AttendanceIcon color={color} size={20} />,
+  profile: (color) => <ProfileIcon color={color} size={20} />,
+};
 
+const DEFAULT_TABS = [
+  { id: 'home', label: 'Home' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'profile', label: 'Profile' },
+];
+
+export default function BottomNavBar({
+  activeTab = 'home',
+  tabs = DEFAULT_TABS,
+  onTabChange,
+}) {
   return (
     <View style={styles.container}>
       <View style={styles.innerBar}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const color = isActive ? COLORS.primary : COLORS.textSecondary;
+          const renderIcon = ICON_MAP[tab.iconKey || tab.id] || ICON_MAP.home;
 
           return (
             <Pressable
@@ -48,14 +53,11 @@ export default function BottomNavBar({ activeTab = 'home', onTabChange }) {
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={`${tab.label} tab`}
             >
-              {/* Active top line indicator */}
               {isActive && <View style={styles.activeIndicator} />}
 
-              <View style={styles.iconContainer}>
-                {tab.icon(color)}
-              </View>
+              <View style={styles.iconContainer}>{renderIcon(color)}</View>
 
-              <Text style={[styles.tabLabel, { color }]}>
+              <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
                 {tab.label}
               </Text>
             </Pressable>

@@ -12,9 +12,15 @@ import { StatusBar } from 'expo-status-bar';
 
 import { COLORS } from './src/constants/colors';
 import { SCREEN_STATES } from './src/constants/authConstants';
-import { MOCK_USER } from './src/data/mockData';
+import {
+  MOCK_USER,
+  MOCK_PROJECTS,
+  MOCK_TASKS,
+  MOCK_INVENTORY,
+  MOCK_INVENTORY_LOG,
+  MOCK_ATTENDANCE,
+} from './src/data/mockData';
 
-// Screen Components
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterPersonalScreen from './src/screens/RegisterPersonalScreen';
@@ -28,20 +34,28 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState(SCREEN_STATES.SPLASH);
   const [currentUser, setCurrentUser] = useState(MOCK_USER);
 
-  // Persistent registration draft during the 3-stage flow
   const [registrationDraft, setRegistrationDraft] = useState({
     name: '',
     email: '',
+    role: null,
     isEmailVerified: false,
   });
 
-  // Safe registration result for success display (no passwords stored)
   const [registeredUser, setRegisteredUser] = useState(null);
 
-  // Navigation Handlers
+  const [projects, setProjects] = useState(MOCK_PROJECTS);
+  const [tasks, setTasks] = useState(MOCK_TASKS);
+  const [inventory, setInventory] = useState(MOCK_INVENTORY);
+  const [inventoryLog, setInventoryLog] = useState(MOCK_INVENTORY_LOG);
+  const [attendance, setAttendance] = useState(MOCK_ATTENDANCE);
+  const [payrollBatches, setPayrollBatches] = useState([]);
+  const [materialRequests, setMaterialRequests] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [adminOverviews, setAdminOverviews] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
+
   const handleGoToLogin = () => {
-    // Clear any sensitive draft data when returning to login
-    setRegistrationDraft({ name: '', email: '', isEmailVerified: false });
+    setRegistrationDraft({ name: '', email: '', role: null, isEmailVerified: false });
     setCurrentScreen(SCREEN_STATES.LOGIN);
   };
 
@@ -63,23 +77,21 @@ export default function App() {
     setCurrentScreen(SCREEN_STATES.PASSWORD_RESET);
   };
 
-  // Step 1 -> Step 2
-  const handlePersonalDetailsComplete = ({ name, email }) => {
+  const handlePersonalDetailsComplete = ({ name, email, role }) => {
     setRegistrationDraft((prev) => ({
       ...prev,
       name,
       email,
+      role,
       isEmailVerified: false,
     }));
     setCurrentScreen(SCREEN_STATES.REGISTER_OTP);
   };
 
-  // Step 2 Back -> Step 1
   const handleOtpBack = () => {
     setCurrentScreen(SCREEN_STATES.REGISTER_PERSONAL);
   };
 
-  // Step 2 -> Step 3
   const handleOtpVerified = () => {
     setRegistrationDraft((prev) => ({
       ...prev,
@@ -88,16 +100,28 @@ export default function App() {
     setCurrentScreen(SCREEN_STATES.REGISTER_PASSWORD);
   };
 
-  // Step 3 Back -> Step 2
   const handlePasswordBack = () => {
     setCurrentScreen(SCREEN_STATES.REGISTER_OTP);
   };
 
-  // Step 3 -> Success
-  const handleRegistrationComplete = ({ name, email }) => {
-    setRegisteredUser({ name, email });
-    // Reset registration draft completely
-    setRegistrationDraft({ name: '', email: '', isEmailVerified: false });
+  const handleRegistrationComplete = ({ name, email, role }) => {
+    setRegisteredUser({ name, email, role });
+    setPendingUsers((prev) => [
+      {
+        id: `USR-${String(Date.now()).slice(-5)}`,
+        name,
+        email,
+        roleLabel: role?.label || 'Supervisor',
+        approver: role?.approver || 'Site / Project Manager',
+        status: 'Pending',
+        requestedAt: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      },
+      ...prev,
+    ]);
+    setRegistrationDraft({ name: '', email: '', role: null, isEmailVerified: false });
     setCurrentScreen(SCREEN_STATES.REGISTER_SUCCESS);
   };
 
@@ -110,19 +134,19 @@ export default function App() {
             .join('')
             .substring(0, 2)
             .toUpperCase()
-        : 'AC';
+        : 'SS';
 
       setCurrentUser((prev) => ({
         ...prev,
         name: registeredUser.name,
         email: registeredUser.email,
+        role: registeredUser.role?.label || prev.role,
         initials,
       }));
     }
     setCurrentScreen(SCREEN_STATES.DASHBOARD);
   };
 
-  // If in Splash intro screen, render full-screen brand animation
   if (currentScreen === SCREEN_STATES.SPLASH) {
     return (
       <View style={styles.flexOne}>
@@ -132,7 +156,6 @@ export default function App() {
     );
   }
 
-  // If in Dashboard, render the tabbed main app container with fixed bottom navigation bar
   if (currentScreen === SCREEN_STATES.DASHBOARD) {
     return (
       <View style={styles.flexOne}>
@@ -140,12 +163,33 @@ export default function App() {
         <MainAppContainer
           user={currentUser}
           onLogOut={handleGoToLogin}
+          sharedState={{
+            projects,
+            setProjects,
+            tasks,
+            setTasks,
+            inventory,
+            setInventory,
+            inventoryLog,
+            setInventoryLog,
+            attendance,
+            setAttendance,
+            payrollBatches,
+            setPayrollBatches,
+            materialRequests,
+            setMaterialRequests,
+            reports,
+            setReports,
+            adminOverviews,
+            setAdminOverviews,
+            pendingUsers,
+            setPendingUsers,
+          }}
         />
       </View>
     );
   }
 
-  // Render the current active authentication screen
   const renderScreen = () => {
     switch (currentScreen) {
       case SCREEN_STATES.LOGIN:
@@ -163,6 +207,7 @@ export default function App() {
             initialData={{
               name: registrationDraft.name,
               email: registrationDraft.email,
+              role: registrationDraft.role,
             }}
             onContinue={handlePersonalDetailsComplete}
             onNavigateToLogin={handleGoToLogin}
@@ -179,7 +224,6 @@ export default function App() {
         );
 
       case SCREEN_STATES.REGISTER_PASSWORD:
-        // Security check: Guard against skipping email verification
         if (!registrationDraft.isEmailVerified) {
           return (
             <RegisterOtpScreen
@@ -193,6 +237,7 @@ export default function App() {
           <RegisterPasswordScreen
             name={registrationDraft.name}
             email={registrationDraft.email}
+            role={registrationDraft.role}
             isEmailVerified={registrationDraft.isEmailVerified}
             onComplete={handleRegistrationComplete}
             onBack={handlePasswordBack}

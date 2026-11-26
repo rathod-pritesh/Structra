@@ -19,17 +19,118 @@ export default function DashboardScreen({
   projects = [],
   tasks = [],
   inventory = [],
+  materialRequests = [],
+  attendance = [],
+  payrollBatches = [],
+  reports = [],
+  adminOverviews = [],
+  pendingUsers = [],
   onOpenCreateProject,
   onNavigateToTab,
   onSelectProject,
 }) {
+  const role = user.role || 'Supervisor';
   const activeProjectsCount = projects.filter(
     (p) => p.status !== 'Completed'
   ).length;
   const pendingTasksCount = tasks.filter((t) => !t.completed).length;
-  const completedTasksCount = tasks.filter((t) => t.completed).length;
+
+  const pendingMatCount = materialRequests.filter(
+    (r) => r.status === 'Pending Manager Approval'
+  ).length;
+  const readyToIssueCount = materialRequests.filter(
+    (r) => r.status === 'Approved — Awaiting Store Keeper'
+  ).length;
+  const pendingPayouts = payrollBatches.filter(
+    (b) => b.status === 'Pending Payout'
+  ).length;
+  const releasedTotal = payrollBatches
+    .filter((b) => b.status === 'Payment Released')
+    .reduce((sum, b) => sum + (b.totalPayable || 0), 0);
+  const pendingManagerSignups = pendingUsers.filter(
+    (u) => u.status === 'Pending' && u.approver === 'Admin'
+  ).length;
+  const pendingTeamSignups = pendingUsers.filter(
+    (u) => u.status === 'Pending' && u.approver !== 'Admin'
+  ).length;
+  const pendingOverviews = adminOverviews.filter(
+    (o) => o.status === 'Pending Admin Review'
+  ).length;
 
   const urgentTasks = tasks.filter((t) => !t.completed).slice(0, 2);
+
+  const getRoleDashboardConfig = () => {
+    switch (role) {
+      case 'Admin':
+        return {
+          portalTitle: 'ADMIN EXECUTIVE PORTAL',
+          cards: [
+            { title: 'Projects', value: projects.length, subtext: 'Portfolio', variant: 'primary' },
+            { title: 'Overviews', value: pendingOverviews, subtext: 'To Review', variant: 'accent' },
+            { title: 'Manager Gate', value: pendingManagerSignups, subtext: 'Pending', variant: 'success' },
+          ],
+          primaryAction: { title: 'Admin Overviews', sub: 'Review reports', onPress: () => onNavigateToTab('overviews') },
+          secondaryAction: { title: 'Manager Approvals', sub: `${pendingManagerSignups} pending`, onPress: () => onNavigateToTab('approvals') },
+        };
+      case 'Site / Project Manager':
+        return {
+          portalTitle: 'SITE / PROJECT MANAGER PORTAL',
+          cards: [
+            { title: 'Active Sites', value: activeProjectsCount, subtext: 'Portfolio', variant: 'primary' },
+            { title: 'Approvals', value: pendingMatCount + pendingTeamSignups, subtext: 'Pending', variant: 'accent' },
+            { title: 'Field Reports', value: reports.length, subtext: 'Collected', variant: 'success' },
+          ],
+          primaryAction: { title: 'Create Project', sub: 'New site setup', onPress: onOpenCreateProject },
+          secondaryAction: { title: 'Open Approvals', sub: `${pendingMatCount + pendingTeamSignups} pending`, onPress: () => onNavigateToTab('approvals') },
+        };
+      case 'Store Keeper':
+        return {
+          portalTitle: 'STORE KEEPER WAREHOUSE PORTAL',
+          cards: [
+            { title: 'Stock Items', value: inventory.length, subtext: 'Tracked', variant: 'primary' },
+            { title: 'Ready to Issue', value: readyToIssueCount, subtext: 'Approved', variant: 'accent' },
+            { title: 'Issued', value: materialRequests.filter((r) => r.status === 'Issued & Assigned').length, subtext: 'Completed', variant: 'success' },
+          ],
+          primaryAction: { title: 'Manage Warehouse', sub: 'Add stock & issue', onPress: () => onNavigateToTab('inventory') },
+          secondaryAction: { title: 'My Profile', sub: 'Account details', onPress: () => onNavigateToTab('profile') },
+        };
+      case 'Accounts Dept.':
+        return {
+          portalTitle: 'ACCOUNTS & PAYROLL PORTAL',
+          cards: [
+            { title: 'Payroll Sheets', value: payrollBatches.length, subtext: 'Submitted', variant: 'primary' },
+            { title: 'Pending Pay', value: pendingPayouts, subtext: 'To Release', variant: 'accent' },
+            { title: 'Released (₹)', value: releasedTotal, subtext: 'Paid Out', variant: 'success' },
+          ],
+          primaryAction: { title: 'Labour Payroll', sub: `${pendingPayouts} pending payout`, onPress: () => onNavigateToTab('payroll') },
+          secondaryAction: { title: 'My Profile', sub: 'Account details', onPress: () => onNavigateToTab('profile') },
+        };
+      case 'Engineer':
+        return {
+          portalTitle: 'SITE ENGINEER PORTAL',
+          cards: [
+            { title: 'Active Sites', value: activeProjectsCount, subtext: 'Assigned', variant: 'primary' },
+            { title: 'Pending Tasks', value: pendingTasksCount, subtext: 'QA / Work', variant: 'accent' },
+            { title: 'Reports Sent', value: reports.length, subtext: 'PDF / Excel', variant: 'success' },
+          ],
+          primaryAction: { title: 'Projects & Reports', sub: 'Submit PDF/Excel', onPress: () => onNavigateToTab('projects') },
+          secondaryAction: { title: 'View Tasks', sub: `${pendingTasksCount} pending`, onPress: () => onNavigateToTab('tasks') },
+        };
+      default: // Supervisor
+        return {
+          portalTitle: 'SITE SUPERVISOR PORTAL',
+          cards: [
+            { title: 'Crew Roster', value: attendance.length, subtext: 'Enrolled', variant: 'primary' },
+            { title: 'Mat. Requests', value: materialRequests.length, subtext: 'Submitted', variant: 'accent' },
+            { title: 'Site Reports', value: reports.length, subtext: 'Uploaded', variant: 'success' },
+          ],
+          primaryAction: { title: 'Crew Attendance', sub: 'Mark & submit pay', onPress: () => onNavigateToTab('attendance') },
+          secondaryAction: { title: 'Request Material', sub: 'From Store Keeper', onPress: () => onNavigateToTab('inventory') },
+        };
+    }
+  };
+
+  const dashConfig = getRoleDashboardConfig();
 
   return (
     <ScrollView
@@ -37,7 +138,6 @@ export default function DashboardScreen({
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Brand Bar & Profile Header */}
       <View style={styles.topBrandBar}>
         <View style={styles.brandGroup}>
           <View style={styles.logoBadge}>
@@ -66,185 +166,184 @@ export default function DashboardScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Welcome Greeting Banner */}
       <View style={styles.welcomeCard}>
-        <Text style={styles.greetingText}>AHMEDABAD SITE SUPERVISOR PORTAL</Text>
-        <Text style={styles.userName}>{user.name || 'Site Supervisor'}</Text>
+        <Text style={styles.greetingText}>{dashConfig.portalTitle}</Text>
+        <Text style={styles.userName}>{user.name || 'User'}</Text>
         <Text style={styles.userRole}>
-          {user.role || 'Site Supervisor'} • {user.company || 'Structra'}
+          {role} • {user.company || 'Structra'}
         </Text>
       </View>
 
-      {/* 2. Summary Cards for Active Projects, Pending Tasks, Completed Tasks */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Operations Overview</Text>
-        <Text style={styles.sectionSubtitle}>Live field metrics</Text>
+        <Text style={styles.sectionSubtitle}>Live {role} metrics</Text>
       </View>
 
       <View style={styles.summaryGrid}>
-        <SummaryCard
-          title="Active Projects"
-          value={activeProjectsCount}
-          subtext={activeProjectsCount > 0 ? 'On Track' : 'None Active'}
-          variant="primary"
-          style={styles.summaryCol3}
-        />
-        <SummaryCard
-          title="Pending Tasks"
-          value={pendingTasksCount}
-          subtext={pendingTasksCount > 0 ? `${pendingTasksCount} Urgent` : 'All Done'}
-          variant="accent"
-          style={styles.summaryCol3}
-        />
-        <SummaryCard
-          title="Completed"
-          value={completedTasksCount}
-          subtext={completedTasksCount > 0 ? `${completedTasksCount} Verified` : 'None Yet'}
-          variant="success"
-          style={styles.summaryCol3}
-        />
+        {dashConfig.cards.map((card, idx) => (
+          <SummaryCard
+            key={idx}
+            title={card.title}
+            value={card.value}
+            subtext={card.subtext}
+            variant={card.variant}
+            style={styles.summaryCol3}
+          />
+        ))}
       </View>
 
-      {/* 3. Quick-Action Buttons */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          onPress={onOpenCreateProject}
+          onPress={dashConfig.primaryAction.onPress}
           style={styles.primaryActionBtn}
           accessibilityRole="button"
-          accessibilityLabel="Create Project"
           activeOpacity={0.85}
         >
           <View style={styles.actionIconCirclePrimary}>
             <PlusIcon color={COLORS.background} size={16} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.primaryActionTitle}>Create Project</Text>
-            <Text style={styles.primaryActionSub}>New site setup</Text>
+            <Text style={styles.primaryActionTitle}>{dashConfig.primaryAction.title}</Text>
+            <Text style={styles.primaryActionSub}>{dashConfig.primaryAction.sub}</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => onNavigateToTab('tasks')}
+          onPress={dashConfig.secondaryAction.onPress}
           style={styles.secondaryActionBtn}
           accessibilityRole="button"
-          accessibilityLabel="View Tasks"
           activeOpacity={0.85}
         >
           <View style={styles.actionIconCircleAccent}>
             <ChecklistIcon color={COLORS.secondary} size={16} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.secondaryActionTitle}>View Tasks</Text>
-            <Text style={styles.secondaryActionSub}>{pendingTasksCount} pending</Text>
+            <Text style={styles.secondaryActionTitle}>{dashConfig.secondaryAction.title}</Text>
+            <Text style={styles.secondaryActionSub}>{dashConfig.secondaryAction.sub}</Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Inventory & Stock Quick Bar */}
-      <TouchableOpacity
-        onPress={() => onNavigateToTab('inventory')}
-        style={styles.inventoryQuickCard}
-        activeOpacity={0.85}
-      >
-        <View style={styles.inventoryQuickLeft}>
-          <View style={styles.inventoryIconBox}>
-            <InventoryIcon color={COLORS.primary} size={18} />
-          </View>
-          <View>
-            <Text style={styles.inventoryQuickTitle}>Site Inventory & Stock</Text>
-            <Text style={styles.inventoryQuickSub}>
-              {inventory.length > 0
-                ? `${inventory.length} Tracked Items • Tap to deduct material`
-                : 'No items yet • Ready for backend sync'}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.inventoryQuickArrow}>→</Text>
-      </TouchableOpacity>
-
-      {/* 4. Recent Projects Section */}
-      <View style={styles.projectsHeaderRow}>
-        <View>
-          <Text style={styles.sectionTitle}>Recent Projects</Text>
-          <Text style={styles.sectionSubtitle}>Active construction sites</Text>
-        </View>
-
+      {(role === 'Supervisor' || role === 'Store Keeper') && (
         <TouchableOpacity
-          onPress={() => onNavigateToTab('projects')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          onPress={() => onNavigateToTab('inventory')}
+          style={styles.inventoryQuickCard}
+          activeOpacity={0.85}
         >
-          <Text style={styles.seeAllText}>See All ({projects.length}) →</Text>
-        </TouchableOpacity>
-      </View>
-
-      {projects.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIconCircle}>
-            <PlusIcon color={COLORS.primary} size={20} />
+          <View style={styles.inventoryQuickLeft}>
+            <View style={styles.inventoryIconBox}>
+              <InventoryIcon color={COLORS.primary} size={18} />
+            </View>
+            <View>
+              <Text style={styles.inventoryQuickTitle}>Site Inventory & Stock</Text>
+              <Text style={styles.inventoryQuickSub}>
+                {inventory.length > 0
+                  ? `${inventory.length} Tracked Items • Tap to manage`
+                  : 'No items yet • Tap to open Inventory'}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.emptyTitle}>No Projects Yet</Text>
-          <Text style={styles.emptySubtext}>
-            Tap '+ Create Project' to initialize a new site or connect with backend APIs.
-          </Text>
-        </View>
-      ) : (
-        projects.slice(0, 3).map((project) => (
-          <ProjectCard
-            key={project.id}
-            project={project}
-            onPress={() => onSelectProject ? onSelectProject(project) : onNavigateToTab('projects')}
-          />
-        ))
+          <Text style={styles.inventoryQuickArrow}>→</Text>
+        </TouchableOpacity>
       )}
 
-      {/* 5. Priority Tasks Preview */}
-      <View style={styles.tasksSectionWrapper}>
-        <View style={styles.projectsHeaderRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Urgent Site Tasks</Text>
-            <Text style={styles.sectionSubtitle}>Immediate attention required</Text>
-          </View>
+      {(role === 'Site / Project Manager' ||
+        role === 'Engineer' ||
+        role === 'Admin') && (
+        <>
+          <View style={styles.projectsHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Recent Projects</Text>
+              <Text style={styles.sectionSubtitle}>Active construction sites</Text>
+            </View>
 
-          <TouchableOpacity
-            onPress={() => onNavigateToTab('tasks')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.seeAllText}>All Tasks ({tasks.length}) →</Text>
-          </TouchableOpacity>
-        </View>
-
-        {urgentTasks.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No Urgent Tasks</Text>
-            <Text style={styles.emptySubtext}>
-              All site checklists, milestones, and inspections are clear.
-            </Text>
-          </View>
-        ) : (
-          urgentTasks.map((task) => (
-            <Pressable
-              key={task.id}
-              onPress={() => onNavigateToTab('tasks')}
-              style={styles.taskCard}
+            <TouchableOpacity
+              onPress={() =>
+                onNavigateToTab(role === 'Admin' ? 'overviews' : 'projects')
+              }
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <View style={styles.taskBadgeCol}>
-                <View style={styles.priorityPill}>
-                  <Text style={styles.priorityText}>{task.priority}</Text>
-                </View>
-              </View>
+              <Text style={styles.seeAllText}>See All ({projects.length}) →</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.taskInfoCol}>
-                <Text style={styles.taskTitle} numberOfLines={1}>
-                  {task.title}
-                </Text>
-                <Text style={styles.taskSubtext}>
-                  {task.project} • {task.dueDate}
-                </Text>
+          {projects.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconCircle}>
+                <PlusIcon color={COLORS.primary} size={20} />
               </View>
-            </Pressable>
-          ))
-        )}
-      </View>
+              <Text style={styles.emptyTitle}>No Projects Yet</Text>
+              <Text style={styles.emptySubtext}>
+                {role === 'Site / Project Manager'
+                  ? "Tap '+ Create Project' to initialize a new site."
+                  : 'Active construction sites will appear here.'}
+              </Text>
+            </View>
+          ) : (
+            projects.slice(0, 3).map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onPress={() =>
+                  onSelectProject
+                    ? onSelectProject(project)
+                    : onNavigateToTab(role === 'Admin' ? 'overviews' : 'projects')
+                }
+              />
+            ))
+          )}
+        </>
+      )}
+
+      {(role === 'Site / Project Manager' || role === 'Engineer') && (
+        <View style={styles.tasksSectionWrapper}>
+          <View style={styles.projectsHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Urgent Site Tasks</Text>
+              <Text style={styles.sectionSubtitle}>Immediate attention required</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => onNavigateToTab('tasks')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.seeAllText}>All Tasks ({tasks.length}) →</Text>
+            </TouchableOpacity>
+          </View>
+
+          {urgentTasks.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No Urgent Tasks</Text>
+              <Text style={styles.emptySubtext}>
+                All site checklists, milestones, and inspections are clear.
+              </Text>
+            </View>
+          ) : (
+            urgentTasks.map((task) => (
+              <Pressable
+                key={task.id}
+                onPress={() => onNavigateToTab('tasks')}
+                style={styles.taskCard}
+              >
+                <View style={styles.taskBadgeCol}>
+                  <View style={styles.priorityPill}>
+                    <Text style={styles.priorityText}>{task.priority}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.taskInfoCol}>
+                  <Text style={styles.taskTitle} numberOfLines={1}>
+                    {task.title}
+                  </Text>
+                  <Text style={styles.taskSubtext}>
+                    {task.project} • {task.dueDate}
+                  </Text>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
